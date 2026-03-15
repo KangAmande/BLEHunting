@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 app.use(express.static('public'));
-const scanTime = 60 * 1000; // 60 seconds
+const scanTime = 2 * 60 * 1000;
 
 const COMPANY_IDS = {
   0x0006: "Microsoft",
