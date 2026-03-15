@@ -11,6 +11,29 @@ const io = new Server(server);
 app.use(express.static('public'));
 const scanTime = 60 * 1000; // 60 seconds
 
+const COMPANY_IDS = {
+  0x0006: "Microsoft",
+  0x000a: "Qualcomm",
+  0x004c: "Apple, Inc.",
+  0x0059: "Nordic Semiconductor (DIY/IoT)",
+  0x0075: "Samsung Electronics",
+  0x0087: "Garmin International",
+  0x00d2: "Samsung (Alternative)",
+  0x00e0: "Google",
+  0x0111: "ORACLE",
+  0x012d: "Sony Corporation",
+  0x0157: "Anker (Wonderland)",
+  0x01fd: "Casio Computer",
+  0x02d0: "Amazon.com",
+  0x038f: "DJI (Dajiang)",
+  0x0499: "Roku, Inc.",
+  0x0504: "Google (Alternative)",
+  0x05ac: "Apple (Secondary)",
+  0x08a9: "Wyze Labs",
+  0x0a5c: "Broadcom",
+  0x1102: "Bose Corporation"
+};
+
 const appearanceMap = {
   0: "Unknown Ghost",
   64: "Phone",
@@ -77,7 +100,7 @@ noble.on('stateChange', async(state) => {
     if (state === 'poweredOn') {
         try{
             console.log('Scanning for devices...');
-            await noble.startScanningAsync([], true);
+            await noble.startScanningAsync([], false);
             setTimeout(async () => {
                 await noble.stopScanningAsync();
                 console.log('Stopped scan after a minute.');
@@ -101,22 +124,22 @@ noble.on('discover', (peripheral) => {
     const privacyLeak = peripheral.advertisement.localName ? 'Data Leak : Name Public' : 'Private';
     const mfgData = peripheral.advertisement.manufacturerData;
     const serviceUuids = peripheral.advertisement.serviceUuids || [];
+
+    let hexString = "No Data";
   
     // Map the UUIDs to their names
     const knownServices = serviceUuids
         .map(uuid => BLE_SERVICES[uuid.toLowerCase()] || `Unknown Service (${uuid})`)
         .join(', ');
 
-    let mfgName = "Unknown Manufacturer";
+    let mfgName = "Unknown";
     
     // Check if mfgData exists AND has at least 2 bytes before reading
-    if (Buffer.isBuffer(mfgData) && mfgData.length >= 2) {
-      const code = mfgData.readUInt16LE(0); 
-      
-      if (code === 0x004C) mfgName = "Apple Inc.";
-      else if (code === 0x0059) mfgName = "Nordic Semiconductor";
-      else if (code === 0x0006) mfgName = "Microsoft";
-      else mfgName = `ID: 0x${code.toString(16).toUpperCase()}`;
+    if (mfgData && mfgData.length >= 2) {
+
+        hexString = mfgData.toString('hex');
+        const companyId = mfgData.readUInt16LE(0);
+        mfgName = COMPANY_IDS[companyId] || `Unknown (0x${companyId.toString(16).padStart(4, '0')})`;
     }
     console.log('------------------------------------------------------------');
     console.log(`Device Name: ${name}`);
@@ -125,9 +148,11 @@ noble.on('discover', (peripheral) => {
     console.log(`RSSI: ${rssi} dBm`);
     console.log(`Manufacturer Name: ${mfgName}`);
     console.log(`Privacy Leak: ${privacyLeak}`);
+    console.log('Appearance: ', appearanceDesc);
     if (serviceUuids.length > 0) {
         console.log(`Capabilities: ${knownServices}`);
     }
+    console.log(`Raw Manufacturer Data: ${hexString}`);
 
     const devicesData = {
         id: ID,
@@ -138,6 +163,7 @@ noble.on('discover', (peripheral) => {
         type: knownServices || 'Unknown',
         lastSeen: new Date().toLocaleTimeString(),
         mfg: mfgName,
+        rawData: hexString,
         privacy: privacyLeak
     };
     
