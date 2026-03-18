@@ -9,6 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 app.use(express.static('public'));
+
 const scanTime = 2 * 60 * 1000;
 
 const COMPANY_IDS = {
