@@ -178,8 +178,7 @@ noble.on('discover', (peripheral) => {
     io.emit('device-spotted', devicesData);
 });
 
-/**
- * mdns.on("response", (response) => {
+mdns.on("response", (response) => {
     console.log("Received mDNS response with answers");
     response.answers.forEach((answer) => {
         if (answer.type === "PTR" || answer.type === "SRV") {
@@ -196,26 +195,43 @@ noble.on('discover', (peripheral) => {
     });
 });
 
+let isAuditing = false;
 async function runNetworkAudit(){
+    if (isAuditing) return;
+    isAuditing = true;
     console.log("Starting network ARP audit...");
-    const devices = await findDevices();
-    devices.forEach(device => {
-        io.emit('device-spotted', {
-            id: device.mac,
-            name: device.name !== '?' ? device.name : `Hidden IP (${device.ip})`,
-            category: 'IP Device',
-            connectionType: 'Ethernet/Wi-Fi',
-            risk: 'Inquiry Needed',
-            rssi: -60,
-            ip: device.ip
+    try{
+        const devices = [
+            { name: 'Gateway', ip: '192.168.1.1', mac: '00:00:00:00:00:01' },
+            { name: 'Test-Device', ip: '192.168.1.50', mac: '00:00:00:00:00:02' }
+        ];
+        /**const devices = await findDevices();
+        const interestingDevices = devices.filter(d => d.name !== '?').slice(0, 10);
+        if (interestingDevices.length < 10) {
+            const anonymous = devices.filter(d => d.name === '?').slice(0, 10 - interestingDevices.length);
+            interestingDevices.push(...anonymous);
+        }*/
+        devices.forEach(device => {
+            io.emit('device-spotted', {
+                id: device.mac,
+                name: device.name !== '?' ? device.name : `Hidden IP (${device.ip})`,
+                category: 'IP Device',
+                connectionType: 'Ethernet/Wi-Fi',
+                risk: 'Inquiry Needed',
+                rssi: -60,
+                ip: device.ip
+            });
         });
-    });
-
+    }catch (err) {
+        console.error("[\u274C] Audit Error:", err.message);
+    }finally {
+        isAuditing = false;
+        //setTimeout(runNetworkAudit, 60000);
+    }
 }
 
-//setInterval(runNetworkAudit, 60000); // Run every 60 seconds
 runNetworkAudit(); // Initial run on startup
- */
+
 
 
 server.listen(3000, () => {
